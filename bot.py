@@ -4,7 +4,6 @@ from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
 
 #=============== CONFIG ================
 API_ID = int(os.environ.get("API_ID", 0))
@@ -12,22 +11,28 @@ API_HASH = os.environ.get("API_HASH", "")
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 BOT_USERNAME = os.environ.get("BOT_USERNAME", "")
 
-#=============== DUMMY SERVER ================
-class Handler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Mention Bot is running!")
-
-    def log_message(self, format, *args):
-        pass
-
-def run_server():
-    port = int(os.environ.get("PORT", 10000))
-    server = HTTPServer(("0.0.0.0", port), Handler)
-    server.serve_forever()
-
-threading.Thread(target=run_server, daemon=True).start()
+#=============== SIMPLE HTTP SERVER FOR RENDER ================
+try:
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"Mention Bot is running!")
+        
+        def log_message(self, format, *args):
+            pass
+    
+    def run_server():
+        port = int(os.environ.get("PORT", 10000))
+        server = HTTPServer(("0.0.0.0", port), Handler)
+        server.serve_forever()
+    
+    threading.Thread(target=run_server, daemon=True).start()
+    print("✅ Web server started for Render")
+except Exception as e:
+    print(f"⚠️ Web server skipped: {e}")
 
 #=============== BOT INIT ================
 app = Client("mention_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -35,7 +40,7 @@ app = Client("mention_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 tagging_active = {}
 current_tasks = {}
 
-#=============== MENTION FUNCTIONS ================
+#=============== MENTION FUNCTIONS (keep as they are) ================
 async def mention_all_members(client, chat_id, message_text, chat_title):
     global tagging_active
     
