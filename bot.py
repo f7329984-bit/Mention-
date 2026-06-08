@@ -30,9 +30,9 @@ try:
         server.serve_forever()
     
     threading.Thread(target=run_server, daemon=True).start()
-    print("✅ Web server started for Render")
+    print("✅ Web server started")
 except Exception as e:
-    print(f"⚠️ Web server skipped: {e}")
+    print(f"⚠️ Web server skip: {e}")
 
 #=============== BOT INIT ================
 app = Client("mention_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -40,7 +40,19 @@ app = Client("mention_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 tagging_active = {}
 current_tasks = {}
 
-#=============== MENTION FUNCTIONS (keep as they are) ================
+#=============== FUNCTION TO GET MENTION TEXT ================
+def get_mention_text(user):
+    """Returns proper mention text for a user"""
+    if user.username:
+        return f"@{user.username}"
+    elif user.first_name:
+        return user.first_name
+    elif user.last_name:
+        return user.last_name
+    else:
+        return "User"
+
+#=============== MENTION ALL MEMBERS ================
 async def mention_all_members(client, chat_id, message_text, chat_title):
     global tagging_active
     
@@ -70,10 +82,8 @@ async def mention_all_members(client, chat_id, message_text, chat_title):
             mentions = []
             
             for member in chunk:
-                if member.username:
-                    mentions.append(f"@{member.username}")
-                else:
-                    mentions.append(member.first_name)
+                mention_text = get_mention_text(member)
+                mentions.append(mention_text)
             
             tag_msg = f"{message_text}\n\n" + "\n".join(mentions)
             
@@ -81,7 +91,8 @@ async def mention_all_members(client, chat_id, message_text, chat_title):
                 await client.send_message(chat_id, tag_msg)
                 tagged += len(chunk)
                 await asyncio.sleep(2)
-            except:
+            except Exception as e:
+                print(f"Error sending: {e}")
                 await asyncio.sleep(5)
         
         if tagging_active.get(chat_id, False):
@@ -93,6 +104,7 @@ async def mention_all_members(client, chat_id, message_text, chat_title):
         await client.send_message(chat_id, f"❌ Error: {str(e)[:100]}")
         tagging_active[chat_id] = False
 
+#=============== MENTION ADMINS ONLY ================
 async def mention_admins_only(client, chat_id, message_text, chat_title):
     global tagging_active
     
@@ -122,10 +134,8 @@ async def mention_admins_only(client, chat_id, message_text, chat_title):
             mentions = []
             
             for admin in chunk:
-                if admin.username:
-                    mentions.append(f"@{admin.username}")
-                else:
-                    mentions.append(admin.first_name)
+                mention_text = get_mention_text(admin)
+                mentions.append(mention_text)
             
             tag_msg = f"👑 {message_text}\n\n" + "\n".join(mentions)
             
@@ -133,7 +143,8 @@ async def mention_admins_only(client, chat_id, message_text, chat_title):
                 await client.send_message(chat_id, tag_msg)
                 tagged += len(chunk)
                 await asyncio.sleep(2)
-            except:
+            except Exception as e:
+                print(f"Error sending: {e}")
                 await asyncio.sleep(5)
         
         if tagging_active.get(chat_id, False):
@@ -145,15 +156,18 @@ async def mention_admins_only(client, chat_id, message_text, chat_title):
         await client.send_message(chat_id, f"❌ Error: {str(e)[:100]}")
         tagging_active[chat_id] = False
 
+#=============== MENTION MEMBERS ONLY (EXCLUDE ADMINS) ================
 async def mention_members_only(client, chat_id, message_text, chat_title):
     global tagging_active
     
     try:
+        # Get admin IDs first
         admin_ids = set()
         async for member in client.get_chat_members(chat_id, filter="administrators"):
             if member.user and not member.user.is_bot:
                 admin_ids.add(member.user.id)
         
+        # Get normal members (exclude admins and bots)
         members = []
         async for member in client.get_chat_members(chat_id, limit=500):
             if member.user and not member.user.is_bot and member.user.id not in admin_ids:
@@ -179,10 +193,8 @@ async def mention_members_only(client, chat_id, message_text, chat_title):
             mentions = []
             
             for member in chunk:
-                if member.username:
-                    mentions.append(f"@{member.username}")
-                else:
-                    mentions.append(member.first_name)
+                mention_text = get_mention_text(member)
+                mentions.append(mention_text)
             
             tag_msg = f"📢 {message_text}\n\n" + "\n".join(mentions)
             
@@ -190,7 +202,8 @@ async def mention_members_only(client, chat_id, message_text, chat_title):
                 await client.send_message(chat_id, tag_msg)
                 tagged += len(chunk)
                 await asyncio.sleep(2)
-            except:
+            except Exception as e:
+                print(f"Error sending: {e}")
                 await asyncio.sleep(5)
         
         if tagging_active.get(chat_id, False):
@@ -210,16 +223,22 @@ async def start_command(client, message: Message):
         f"🔥 Welcome {user.first_name}! 🔥\n\n"
         f"**Mention Bot**\n\n"
         f"• /tagall <msg> - Tag all members\n"
-        f"• /tagadmins <msg> - Tag admins\n"
-        f"• /tagmembers <msg> - Tag members\n"
-        f"• /stop - Stop tagging\n\n"
+        f"• /tagadmins <msg> - Tag only admins\n"
+        f"• /tagmembers <msg> - Tag only members\n"
+        f"• /stop - Stop tagging\n"
+        f"• /status - Check status\n\n"
+        f"💡 Bina username wale members ka **First Name** use hoga!\n\n"
         f"Made by @ll_SUPRRME_XD_ll"
     )
 
 @app.on_message(filters.command("help"))
 async def help_command(client, message: Message):
     help_text = """
-🤖 **MENTION BOT**
+🤖 **MENTION BOT - Help**
+
+━━━━━━━━━━━━━━━━━━━━
+📌 **COMMANDS**
+━━━━━━━━━━━━━━━━━━━━
 
 /tagall <message> - Tag all members
 /tagadmins <message> - Tag only admins
@@ -227,10 +246,30 @@ async def help_command(client, message: Message):
 /stop - Stop tagging
 /status - Check status
 
-Example:
-/tagall Hello everyone!
+━━━━━━━━━━━━━━━━━━━━
+📝 **EXAMPLES**
+━━━━━━━━━━━━━━━━━━━━
 
-Note: Bot must be ADMIN in group!
+/tagall Hello everyone! Welcome!
+/tagadmins Attention admins!
+/tagmembers Hello members!
+
+━━━━━━━━━━━━━━━━━━━━
+💡 **HOW MENTION WORKS**
+━━━━━━━━━━━━━━━━━━━━
+
+• Agar username hai → @username use hoga
+• Agar username nahi hai → First Name use hoga
+• Agar First Name bhi nahi → "User" likhega
+
+━━━━━━━━━━━━━━━━━━━━
+⚠️ **NOTE**
+━━━━━━━━━━━━━━━━━━━━
+
+• Bot must be ADMIN in group!
+• Tags up to 500 members
+
+Made by @ll_SUPRRME_XD_ll
     """
     await message.reply_text(help_text)
 
@@ -246,7 +285,7 @@ async def tag_all_command(client, message: Message):
     
     parts = message.text.split(maxsplit=1)
     if len(parts) < 2:
-        await message.reply_text("❌ Usage: `/tagall Your message here`")
+        await message.reply_text("❌ Usage: `/tagall Your message here`\n\nExample: `/tagall Hello everyone!`")
         return
     
     msg_text = parts[1]
@@ -254,7 +293,7 @@ async def tag_all_command(client, message: Message):
     
     tagging_active[chat_id] = True
     
-    await message.reply_text(f"🚀 TAGGING ALL MEMBERS!\n📝 {msg_text}\n\nUse /stop to stop.")
+    await message.reply_text(f"🚀 **TAGGING ALL MEMBERS!**\n\n📝 {msg_text}\n\n📍 Group: {chat_title}\n\nUse /stop to stop.")
     await message.delete()
     
     task = asyncio.create_task(mention_all_members(client, chat_id, msg_text, chat_title))
@@ -267,12 +306,12 @@ async def tag_admins_command(client, message: Message):
     chat_id = message.chat.id
     
     if tagging_active.get(chat_id, False):
-        await message.reply_text("⚠️ Tagging already in progress!")
+        await message.reply_text("⚠️ Tagging already in progress! Use /stop to stop.")
         return
     
     parts = message.text.split(maxsplit=1)
     if len(parts) < 2:
-        await message.reply_text("❌ Usage: `/tagadmins Your message here`")
+        await message.reply_text("❌ Usage: `/tagadmins Your message here`\n\nExample: `/tagadmins Hello admins!`")
         return
     
     msg_text = parts[1]
@@ -280,7 +319,7 @@ async def tag_admins_command(client, message: Message):
     
     tagging_active[chat_id] = True
     
-    await message.reply_text(f"👑 TAGGING ADMINS!\n📝 {msg_text}")
+    await message.reply_text(f"👑 **TAGGING ADMINS!**\n\n📝 {msg_text}\n\n📍 Group: {chat_title}\n\nUse /stop to stop.")
     await message.delete()
     
     task = asyncio.create_task(mention_admins_only(client, chat_id, msg_text, chat_title))
@@ -293,12 +332,12 @@ async def tag_members_command(client, message: Message):
     chat_id = message.chat.id
     
     if tagging_active.get(chat_id, False):
-        await message.reply_text("⚠️ Tagging already in progress!")
+        await message.reply_text("⚠️ Tagging already in progress! Use /stop to stop.")
         return
     
     parts = message.text.split(maxsplit=1)
     if len(parts) < 2:
-        await message.reply_text("❌ Usage: `/tagmembers Your message here`")
+        await message.reply_text("❌ Usage: `/tagmembers Your message here`\n\nExample: `/tagmembers Hello members!`")
         return
     
     msg_text = parts[1]
@@ -306,7 +345,7 @@ async def tag_members_command(client, message: Message):
     
     tagging_active[chat_id] = True
     
-    await message.reply_text(f"📢 TAGGING MEMBERS!\n📝 {msg_text}")
+    await message.reply_text(f"📢 **TAGGING MEMBERS!**\n\n📝 {msg_text}\n\n📍 Group: {chat_title}\n\nUse /stop to stop.")
     await message.delete()
     
     task = asyncio.create_task(mention_members_only(client, chat_id, msg_text, chat_title))
@@ -321,8 +360,11 @@ async def stop_command(client, message: Message):
     if tagging_active.get(chat_id, False):
         tagging_active[chat_id] = False
         if chat_id in current_tasks:
-            current_tasks[chat_id].cancel()
-        await message.reply_text("🛑 Tagging stopped!")
+            try:
+                current_tasks[chat_id].cancel()
+            except:
+                pass
+        await message.reply_text("🛑 **Tagging stopped!**")
     else:
         await message.reply_text("⚠️ No active tagging!")
     
@@ -332,18 +374,20 @@ async def stop_command(client, message: Message):
 async def status_command(client, message: Message):
     chat_id = message.chat.id if message.chat else None
     status = "🟢 Active" if tagging_active.get(chat_id, False) else "⚪ Idle"
-    await message.reply_text(f"📊 Status: {status}\n✅ Bot is ready!")
+    await message.reply_text(f"📊 **Bot Status**\n\n• Status: {status}\n• Bot: @{BOT_USERNAME}\n• ✅ Ready to use!")
 
 #=============== MAIN ================
 def main():
     if not API_ID or not API_HASH or not BOT_TOKEN:
-        print("❌ Please set API_ID, API_HASH, BOT_TOKEN!")
+        print("❌ Please set API_ID, API_HASH, BOT_TOKEN in environment variables!")
         return
     
     print("=" * 50)
     print("🤖 MENTION BOT STARTED!")
     print("=" * 50)
-    print("Commands: /tagall, /tagadmins, /tagmembers, /stop")
+    print(f"✅ Bot: @{BOT_USERNAME if BOT_USERNAME else 'unknown'}")
+    print("📋 Commands: /tagall, /tagadmins, /tagmembers, /stop")
+    print("💡 Bina username wale members ka FIRST NAME use hoga!")
     print("=" * 50)
     
     app.run()
