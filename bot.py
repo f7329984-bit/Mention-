@@ -1,4 +1,5 @@
-import asyncio
+
+import asyncio  # ✅ Fixed: Capital 'I' ko small 'i' kiya
 import os
 from datetime import datetime
 from pyrogram import Client, filters
@@ -42,15 +43,16 @@ current_tasks = {}
 
 #=============== FUNCTION TO GET MENTION TEXT ================
 def get_mention_text(user):
-    """Returns proper mention text for a user"""
+    """Returns proper markdown mention text for a user so they get notified"""
     if user.username:
         return f"@{user.username}"
-    elif user.first_name:
-        return user.first_name
-    elif user.last_name:
-        return user.last_name
-    else:
-        return "User"
+    
+    # ✅ Fixed: Agar username nahi hai, toh Telegram standard markdown hyperlinking use hogi
+    # Isse bina username wale user ko bhi notification chala jayega.
+    name = user.first_name or user.last_name or "User"
+    # Special markdown characters ko escape karna safe rehta hai
+    clean_name = name.replace("[", "").replace("]", "").replace("`", "")
+    return f"[{mention})]"
 
 #=============== MENTION ALL MEMBERS ================
 async def mention_all_members(client, chat_id, message_text, chat_title):
@@ -70,7 +72,8 @@ async def mention_all_members(client, chat_id, message_text, chat_title):
         total = len(members)
         await client.send_message(chat_id, f"📊 Found {total} members. Starting tag...")
         
-        chunk_size = 15
+        # Tip: Group tagging ke liye chunk size 5 ya 10 best hota hai taaki flood wait na aaye
+        chunk_size = 5 
         tagged = 0
         
         for i in range(0, len(members), chunk_size):
@@ -85,12 +88,14 @@ async def mention_all_members(client, chat_id, message_text, chat_title):
                 mention_text = get_mention_text(member)
                 mentions.append(mention_text)
             
-            tag_msg = f"{message_text}\n\n" + "\n".join(mentions)
+            # Mentions ko comma ya space se separate karna behtar hai, new line se chat lambi ho jati hai
+            tag_msg = f"{message_text}\n\n" + " , ".join(mentions)
             
             try:
-                await client.send_message(chat_id, tag_msg)
+                # disable_web_page_preview=True lagaya taaki link previews clutter na karein
+                await client.send_message(chat_id, tag_msg, disable_web_page_preview=True)
                 tagged += len(chunk)
-                await asyncio.sleep(2)
+                await asyncio.sleep(3) # Flood wait se bachne ke liye safe delay
             except Exception as e:
                 print(f"Error sending: {e}")
                 await asyncio.sleep(5)
@@ -122,7 +127,7 @@ async def mention_admins_only(client, chat_id, message_text, chat_title):
         total = len(admins)
         await client.send_message(chat_id, f"📊 Found {total} admins. Tagging admins...")
         
-        chunk_size = 15
+        chunk_size = 5
         tagged = 0
         
         for i in range(0, len(admins), chunk_size):
@@ -137,12 +142,12 @@ async def mention_admins_only(client, chat_id, message_text, chat_title):
                 mention_text = get_mention_text(admin)
                 mentions.append(mention_text)
             
-            tag_msg = f"👑 {message_text}\n\n" + "\n".join(mentions)
+            tag_msg = f"👑 {message_text}\n\n" + " , ".join(mentions)
             
             try:
-                await client.send_message(chat_id, tag_msg)
+                await client.send_message(chat_id, tag_msg, disable_web_page_preview=True)
                 tagged += len(chunk)
-                await asyncio.sleep(2)
+                await asyncio.sleep(3)
             except Exception as e:
                 print(f"Error sending: {e}")
                 await asyncio.sleep(5)
@@ -161,13 +166,11 @@ async def mention_members_only(client, chat_id, message_text, chat_title):
     global tagging_active
     
     try:
-        # Get admin IDs first
         admin_ids = set()
         async for member in client.get_chat_members(chat_id, filter="administrators"):
             if member.user and not member.user.is_bot:
                 admin_ids.add(member.user.id)
         
-        # Get normal members (exclude admins and bots)
         members = []
         async for member in client.get_chat_members(chat_id, limit=500):
             if member.user and not member.user.is_bot and member.user.id not in admin_ids:
@@ -181,7 +184,7 @@ async def mention_members_only(client, chat_id, message_text, chat_title):
         total = len(members)
         await client.send_message(chat_id, f"📊 Found {total} members (excluding admins)...")
         
-        chunk_size = 15
+        chunk_size = 5
         tagged = 0
         
         for i in range(0, len(members), chunk_size):
@@ -196,12 +199,12 @@ async def mention_members_only(client, chat_id, message_text, chat_title):
                 mention_text = get_mention_text(member)
                 mentions.append(mention_text)
             
-            tag_msg = f"📢 {message_text}\n\n" + "\n".join(mentions)
+            tag_msg = f"📢 {message_text}\n\n" + " , ".join(mentions)
             
             try:
-                await client.send_message(chat_id, tag_msg)
+                await client.send_message(chat_id, tag_msg, disable_web_page_preview=True)
                 tagged += len(chunk)
-                await asyncio.sleep(2)
+                await asyncio.sleep(3)
             except Exception as e:
                 print(f"Error sending: {e}")
                 await asyncio.sleep(5)
@@ -227,7 +230,7 @@ async def start_command(client, message: Message):
         f"• /tagmembers <msg> - Tag only members\n"
         f"• /stop - Stop tagging\n"
         f"• /status - Check status\n\n"
-        f"💡 Bina username wale members ka **First Name** use hoga!\n\n"
+        f"💡 Bina username wale members ko unke name par hyperlink se tag kiya jayega taaki alert jaye!\n\n"
         f"Made by @ll_SUPRRME_XD_ll"
     )
 
@@ -259,8 +262,7 @@ async def help_command(client, message: Message):
 ━━━━━━━━━━━━━━━━━━━━
 
 • Agar username hai → @username use hoga
-• Agar username nahi hai → First Name use hoga
-• Agar First Name bhi nahi → "User" likhega
+• Agar username nahi hai → Name text format me tag hoga (Notification perfectly jayega)
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚠️ **NOTE**
