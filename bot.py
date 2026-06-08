@@ -40,11 +40,13 @@ app = Client("mention_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 tagging_active = {}
 current_tasks = {}
 
-#=============== FUNCTION TO GET MENTION TEXT ================
+#=============== FUNCTION TO CREATE CLICKABLE MENTION ================
 def get_mention_text(user):
-    """Returns proper mention text for a user - works with or without username"""
-    # Use tg://user?id= format for guaranteed mention (inline mention)
-    # Display name fallback: username > first_name > last_name > "User"
+    """
+    Creates a clickable mention using tg://user?id=
+    When clicked, opens the user's profile directly
+    """
+    # Display name - what users will see
     if user.username:
         display_name = f"@{user.username}"
     elif user.first_name:
@@ -54,7 +56,7 @@ def get_mention_text(user):
     else:
         display_name = "User"
     
-    # Create an inline mention using tg://user?id= for guaranteed mention
+    # Inline mention - CLICKABLE! Opens user profile
     mention = f"[{display_name}](tg://user?id={user.id})"
     return mention
 
@@ -76,7 +78,7 @@ async def mention_all_members(client, chat_id, message_text, chat_title):
         total = len(members)
         await client.send_message(chat_id, f"📊 Found {total} members. Starting tag...")
         
-        chunk_size = 5  # Reduced chunk size for reliability
+        chunk_size = 5
         tagged = 0
         
         for i in range(0, len(members), chunk_size):
@@ -91,12 +93,13 @@ async def mention_all_members(client, chat_id, message_text, chat_title):
                 mention_text = get_mention_text(member)
                 mentions.append(mention_text)
             
-            tag_msg = f"{message_text}\n\n" + "\n".join(mentions)
+            # Join mentions with space, not newline
+            tag_msg = f"{message_text}\n\n" + " ".join(mentions)
             
             try:
                 await client.send_message(chat_id, tag_msg, disable_web_page_preview=True)
                 tagged += len(chunk)
-                await asyncio.sleep(3)  # Increased delay to avoid flood limits
+                await asyncio.sleep(3)
             except Exception as e:
                 print(f"Error sending: {e}")
                 await asyncio.sleep(5)
@@ -143,7 +146,7 @@ async def mention_admins_only(client, chat_id, message_text, chat_title):
                 mention_text = get_mention_text(admin)
                 mentions.append(mention_text)
             
-            tag_msg = f"👑 {message_text}\n\n" + "\n".join(mentions)
+            tag_msg = f"👑 {message_text}\n\n" + " ".join(mentions)
             
             try:
                 await client.send_message(chat_id, tag_msg, disable_web_page_preview=True)
@@ -202,7 +205,7 @@ async def mention_members_only(client, chat_id, message_text, chat_title):
                 mention_text = get_mention_text(member)
                 mentions.append(mention_text)
             
-            tag_msg = f"📢 {message_text}\n\n" + "\n".join(mentions)
+            tag_msg = f"📢 {message_text}\n\n" + " ".join(mentions)
             
             try:
                 await client.send_message(chat_id, tag_msg, disable_web_page_preview=True)
@@ -233,7 +236,7 @@ async def start_command(client, message: Message):
         f"• /tagmembers <msg> - Tag only members\n"
         f"• /stop - Stop tagging\n"
         f"• /status - Check status\n\n"
-        f"💡 Sabhi members ko mention kiya jayega chahe username ho ya na ho!\n\n"
+        f"💡 **Click on any name → User profile will open!**\n\n"
         f"Made by @ll_SUPRRME_XD_ll"
     )
 
@@ -264,9 +267,9 @@ async def help_command(client, message: Message):
 💡 **HOW MENTION WORKS**
 ━━━━━━━━━━━━━━━━━━━━
 
-• Har member ko `tg://user?id=` inline mention se tag kiya jayega
-• Chahe username ho ya na ho, mention hoga hi!
-• Display name: username > first_name > last_name > "User"
+• **Click on any name** → User profile open hoga
+• Chahe username ho ya na ho, mention hoga
+• Har mention clickable hai!
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚠️ **NOTE**
@@ -274,7 +277,6 @@ async def help_command(client, message: Message):
 
 • Bot must be ADMIN in group!
 • Tags up to 500 members
-• Private groups mein hi kaam karta hai
 
 Made by @ll_SUPRRME_XD_ll
     """
@@ -300,7 +302,7 @@ async def tag_all_command(client, message: Message):
     
     tagging_active[chat_id] = True
     
-    await message.reply_text(f"🚀 **TAGGING ALL MEMBERS!**\n\n📝 {msg_text}\n\n📍 Group: {chat_title}\n\nUse /stop to stop.")
+    await message.reply_text(f"🚀 **TAGGING ALL MEMBERS!**\n\n📝 {msg_text}\n\n📍 Group: {chat_title}\n\n💡 Click on any name to open profile!\n\nUse /stop to stop.")
     await message.delete()
     
     task = asyncio.create_task(mention_all_members(client, chat_id, msg_text, chat_title))
@@ -326,7 +328,7 @@ async def tag_admins_command(client, message: Message):
     
     tagging_active[chat_id] = True
     
-    await message.reply_text(f"👑 **TAGGING ADMINS!**\n\n📝 {msg_text}\n\n📍 Group: {chat_title}\n\nUse /stop to stop.")
+    await message.reply_text(f"👑 **TAGGING ADMINS!**\n\n📝 {msg_text}\n\n📍 Group: {chat_title}\n\n💡 Click on any name to open profile!\n\nUse /stop to stop.")
     await message.delete()
     
     task = asyncio.create_task(mention_admins_only(client, chat_id, msg_text, chat_title))
@@ -352,7 +354,7 @@ async def tag_members_command(client, message: Message):
     
     tagging_active[chat_id] = True
     
-    await message.reply_text(f"📢 **TAGGING MEMBERS!**\n\n📝 {msg_text}\n\n📍 Group: {chat_title}\n\nUse /stop to stop.")
+    await message.reply_text(f"📢 **TAGGING MEMBERS!**\n\n📝 {msg_text}\n\n📍 Group: {chat_title}\n\n💡 Click on any name to open profile!\n\nUse /stop to stop.")
     await message.delete()
     
     task = asyncio.create_task(mention_members_only(client, chat_id, msg_text, chat_title))
@@ -381,7 +383,7 @@ async def stop_command(client, message: Message):
 async def status_command(client, message: Message):
     chat_id = message.chat.id if message.chat else None
     status = "🟢 Active" if tagging_active.get(chat_id, False) else "⚪ Idle"
-    await message.reply_text(f"📊 **Bot Status**\n\n• Status: {status}\n• Bot: @{BOT_USERNAME}\n• ✅ Ready to use!")
+    await message.reply_text(f"📊 **Bot Status**\n\n• Status: {status}\n• Bot: @{BOT_USERNAME}\n• ✅ Ready to use!\n\n💡 Click on any mention → Profile opens!")
 
 #=============== MAIN ================
 def main():
@@ -394,7 +396,7 @@ def main():
     print("=" * 50)
     print(f"✅ Bot: @{BOT_USERNAME if BOT_USERNAME else 'unknown'}")
     print("📋 Commands: /tagall, /tagadmins, /tagmembers, /stop")
-    print("💡 Sabhi members ko mention hoga chahe username ho ya na ho!")
+    print("💡 Click on any mention → User profile will open!")
     print("=" * 50)
     
     app.run()
