@@ -40,13 +40,15 @@ app = Client("mention_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKE
 tagging_active = {}
 current_tasks = {}
 
-#=============== FUNCTION TO CREATE CLICKABLE MENTION ================
+#=============== FUNCTION TO CREATE CLICKABLE MENTION (FIXED - NO "User" TEXT) ================
 def get_mention_text(user):
     """
     Creates a clickable mention using tg://user?id=
     When clicked, opens the user's profile directly
+    NEVER shows "User" text
     """
-    # Display name - what users will see
+    # ALWAYS use user ID for mention - ye hamesha kaam karega
+    # Display name: username > first_name > last_name > "Member"
     if user.username:
         display_name = f"@{user.username}"
     elif user.first_name:
@@ -54,7 +56,8 @@ def get_mention_text(user):
     elif user.last_name:
         display_name = user.last_name
     else:
-        display_name = "User"
+        # No "User" text - use a dot or emoji instead
+        display_name = "👤"  # Just a profile icon
     
     # Inline mention - CLICKABLE! Opens user profile
     mention = f"[{display_name}](tg://user?id={user.id})"
@@ -93,7 +96,7 @@ async def mention_all_members(client, chat_id, message_text, chat_title):
                 mention_text = get_mention_text(member)
                 mentions.append(mention_text)
             
-            # Join mentions with space, not newline
+            # Join mentions with space
             tag_msg = f"{message_text}\n\n" + " ".join(mentions)
             
             try:
@@ -269,7 +272,7 @@ async def help_command(client, message: Message):
 
 • **Click on any name** → User profile open hoga
 • Chahe username ho ya na ho, mention hoga
-• Har mention clickable hai!
+• Bina name wale member ke liye 👤 icon dikhega
 
 ━━━━━━━━━━━━━━━━━━━━
 ⚠️ **NOTE**
